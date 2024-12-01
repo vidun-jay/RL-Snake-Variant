@@ -64,7 +64,7 @@ class Food:
     def __init__(self):
         self.position = self.random_position()
         # load the fruit image
-        self.image = pygame.image.load("fruit.png").convert_alpha()
+        self.image = pygame.image.load("assets/fruit.png").convert_alpha()
         # scale image to fit the grid size
         self.image = pygame.transform.scale(self.image, (GRID_SIZE, GRID_SIZE))
 
