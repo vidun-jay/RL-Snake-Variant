@@ -43,6 +43,9 @@ class Snake:
     def move(self):
         if not self.alive:
             return
+        if self.length <= 0 or len(self.positions) == 0:
+            self.alive = False
+            return
 
         cur = self.positions[0]
         x, y = self.direction
@@ -122,24 +125,26 @@ def main():
         clock.tick(10)
 
         if not game_over:
-            snake.move()
-
             # check if the snake is alive
             if not snake.alive or snake.length <= 0:
                 game_over = True
+            else:
+                snake.move()
 
-            if snake.positions[0] == food.position:
-                if food.decayed:
-                    snake.length -= 1
-                    # allow the length to go below 1 for game over condition
-                    if len(snake.positions) > snake.length:
-                        snake.positions.pop()
-                else:
-                    snake.length += 1
-                food.reset()
+                if snake.positions[0] == food.position:
+                    if food.decayed:
+                        snake.length -= 1
+                        # allow the length to go below 1 for game over condition
+                        if len(snake.positions) > snake.length:
+                            snake.positions.pop()
+                        if snake.length <= 0:
+                            snake.alive = False
+                    else:
+                        snake.length += 1
+                    food.reset()
 
-            # update the food state after each iteration
-            food.update()
+                # update the food state after each iteration
+                food.update()
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
