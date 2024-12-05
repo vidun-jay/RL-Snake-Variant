@@ -158,24 +158,34 @@ class Food:
         self.spawn_time = pygame.time.get_ticks()
         self.decayed = False
 
+        # Load fruit images
+        self.fresh_image = pygame.image.load("assets/fruit.png").convert_alpha()
+        self.fresh_image = pygame.transform.scale(self.fresh_image, (GRID_SIZE, GRID_SIZE))
+        self.decayed_image = pygame.image.load("assets/decayed_fruit.png").convert_alpha()
+        self.decayed_image = pygame.transform.scale(self.decayed_image, (GRID_SIZE, GRID_SIZE))
+        self.image = self.fresh_image  # Start with the fresh image
+
     def random_position(self):
         x = random.randint(0, (WIDTH - GRID_SIZE) // GRID_SIZE) * GRID_SIZE
         y = random.randint(0, (HEIGHT - GRID_SIZE) // GRID_SIZE) * GRID_SIZE
         return (x, y)
 
     def update(self):
-        if not self.decayed and pygame.time.get_ticks() - self.spawn_time > 5000:
+        # Check if 5 seconds have passed since the fruit spawned
+        current_time = pygame.time.get_ticks()
+        if not self.decayed and current_time - self.spawn_time > 5000:
             self.decayed = True
+            self.image = self.decayed_image  # Switch to the decayed image
 
     def reset(self):
         self.position = self.random_position()
         self.spawn_time = pygame.time.get_ticks()
         self.decayed = False
+        self.image = self.fresh_image  # Reset to the fresh image
 
     def draw(self, surface):
-        color = (255, 0, 0) if self.decayed else (0, 255, 0)
-        rect = pygame.Rect(self.position[0], self.position[1], GRID_SIZE, GRID_SIZE)
-        pygame.draw.rect(surface, color, rect)
+        # Blit the current image (fresh or decayed) at the fruit's position
+        surface.blit(self.image, self.position)
 
 
 # Gym registration
