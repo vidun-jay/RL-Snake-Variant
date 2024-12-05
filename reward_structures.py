@@ -5,7 +5,8 @@ def barebones_reward_structure(snake, food):
     if snake.positions[0] == food.position:
         snake.length += 1
         food.reset()
-        
+    food.update()
+    
 # snake gains 1 length if fresh, and loses 1 length if decayed
 def default_reward_structure(snake, food):
     if snake.positions[0] == food.position:
@@ -18,12 +19,16 @@ def default_reward_structure(snake, food):
             snake.length += 1            
         food.reset()
 
+    # update the food state after each iteration
+    food.update()
+
+
 # penalty for rotten food increases as time passes
-def time_sensitive_rewards(snake, food, decay_rate=5000):
+def time_sensitive_rewards(snake, food, number_of_penalties=3, penalty_rate=5000):
     current_time = pygame.time.get_ticks()
     time_passed = current_time - food.spawn_time
     
-    if(time_passed >= decay_rate * (food.penalty + 2)):
+    if(time_passed >= penalty_rate * (food.penalty + 2)):
         food.penalty += 1
             
     if snake.positions[0] == food.position:
@@ -36,8 +41,11 @@ def time_sensitive_rewards(snake, food, decay_rate=5000):
             snake.length += 1
         food.reset()
 
-# snake gains a multiplier for every 5 consecutively eaten fruit
-def multiplier_reward_structure(snake, food):
+    # respawn the food after increasing the penalty for rotten food a certain number of times
+    food.update((penalty_rate * number_of_penalties * 10000))
+
+# snake gains a multiplier for every n consecutively eaten fruit
+def multiplier_reward_structure(snake, food, n=5):
     if snake.positions[0] == food.position:
         if food.decayed:
             snake.length -= 1
@@ -48,13 +56,15 @@ def multiplier_reward_structure(snake, food):
         else: 
             snake.fresh_fruit_combo += 1
             
-            if snake.fresh_fruit_combo > 5:
+            if snake.fresh_fruit_combo > n:
                 snake.multiplier += 1 
                 snake.fresh_fruit_combo = 0 
                 
             snake.length += snake.multiplier
             
         food.reset()
+        
+    food.update()
         
 # snake gains a bonus for reaching milestones
 def milestone_reward_structure(snake, food):
@@ -75,3 +85,5 @@ def milestone_reward_structure(snake, food):
                 snake.length += 10
                 
         food.reset()
+        
+    food.update()

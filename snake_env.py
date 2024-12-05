@@ -49,7 +49,7 @@ class Snake:
         if self.length <= 0 or len(self.positions) == 0:
             self.alive = False
             return
-
+        
         cur = self.positions[0]
         x, y = self.direction
         new_x = cur[0] + (x * GRID_SIZE)
@@ -102,14 +102,18 @@ class Food:
         y = random.randint(0, (HEIGHT - GRID_SIZE) // GRID_SIZE) * GRID_SIZE
         return (x, y)
 
-    def update(self, decay_rate=5000):
+    def update(self, respawn_delay=10000, decay_delay=5000):
         current_time = pygame.time.get_ticks()
         time_passed = current_time - self.spawn_time
 
-        if time_passed >= decay_rate:
+        if time_passed >= decay_delay:
             self.decayed = True
             self.image = self.decayed_image
             
+        # respawn the fruit if it remains decayed and unconsumed for the respawn delay period
+        if(time_passed > (decay_delay + respawn_delay)):
+            self.reset()        
+                        
     def reset(self):
         self.position = self.random_position()
         self.spawn_time = pygame.time.get_ticks()
@@ -135,14 +139,13 @@ def main():
             # check if the snake is alive
             if not snake.alive or snake.length <= 0:
                 game_over = True
+
             else:
                 snake.move()
+                
                 # reward structure
-                time_sensitive_rewards(snake, food)
-
-                # update the food state after each iteration
-                food.update()
-
+                default_reward_structure(snake, food)
+                
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
