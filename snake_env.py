@@ -1,6 +1,7 @@
 import pygame
 import sys
 import random
+from reward_structures import *
 
 pygame.init()
 pygame.display.set_caption("Snake Game")
@@ -34,6 +35,8 @@ class Snake:
         self.direction = random.choice([UP, DOWN, LEFT, RIGHT])
         self.length = 1
         self.alive = True
+        self.multiplier = 1
+        self.fresh_fruit_combo = 0
 
     def random_start(self):
         x = random.randint(0, (WIDTH - GRID_SIZE) // GRID_SIZE) * GRID_SIZE
@@ -43,7 +46,10 @@ class Snake:
     def move(self):
         if not self.alive:
             return
-
+        if self.length <= 0 or len(self.positions) == 0:
+            self.alive = False
+            return
+        
         cur = self.positions[0]
         x, y = self.direction
         new_x = cur[0] + (x * GRID_SIZE)
@@ -88,24 +94,27 @@ class Food:
         self.decayed_image = pygame.transform.scale(self.decayed_image, (GRID_SIZE, GRID_SIZE))
         self.image = self.fresh_image
         self.spawn_time = pygame.time.get_ticks()
-        self.decayed = False
+        self.decayed = False        
+        self.penalty = 0
 
     def random_position(self):
         x = random.randint(0, (WIDTH - GRID_SIZE) // GRID_SIZE) * GRID_SIZE
         y = random.randint(0, (HEIGHT - GRID_SIZE) // GRID_SIZE) * GRID_SIZE
         return (x, y)
 
-    def update(self):
-        # check if 5 seconds have passed since the fruit spawned
+    def update(self, decay_rate=5000):
         current_time = pygame.time.get_ticks()
-        if not self.decayed and current_time - self.spawn_time >= 5000:
+        time_passed = current_time - self.spawn_time
+
+        if time_passed >= decay_rate:
             self.decayed = True
             self.image = self.decayed_image
-
+            
     def reset(self):
         self.position = self.random_position()
         self.spawn_time = pygame.time.get_ticks()
         self.decayed = False
+        self.penalty = 0
         self.image = self.fresh_image
 
     def draw(self, surface):
@@ -122,24 +131,19 @@ def main():
         clock.tick(10)
 
         if not game_over:
-            snake.move()
 
             # check if the snake is alive
             if not snake.alive or snake.length <= 0:
                 game_over = True
 
-            if snake.positions[0] == food.position:
-                if food.decayed:
-                    snake.length -= 1
-                    # allow the length to go below 1 for game over condition
-                    if len(snake.positions) > snake.length:
-                        snake.positions.pop()
-                else:
-                    snake.length += 1
-                food.reset()
+            else:
+                snake.move()
+                
+                # reward structure
+                time_sensitive_rewards(snake, food)
 
-            # update the food state after each iteration
-            food.update()
+                # update the food state after each iteration
+                food.update()
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
