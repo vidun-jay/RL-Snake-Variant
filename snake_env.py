@@ -1,32 +1,117 @@
 import pygame
-import sys
 import random
+import gym
+from gym import spaces
+import numpy as np
 
-pygame.init()
-pygame.display.set_caption("Snake Game")
-
-# screen dimensions
+# Constants
 GRID_SIZE = 40
 WIDTH, HEIGHT = 1280, 960
 
-# colours
 WHITE = (255, 255, 255)
 GREEN = (0, 255, 0)
 BLACK = (0, 0, 0)
 SNAKE_COLOR = (0, 128, 0)
 
-# directions
 UP = (0, -1)
 DOWN = (0, 1)
 LEFT = (-1, 0)
 RIGHT = (1, 0)
 
-# set up display
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-clock = pygame.time.Clock()
 
-# create a font for rendering text
-font = pygame.font.SysFont(None, 35)
+class SnakeGymEnv(gym.Env):
+    metadata = {"render_modes": ["human"]}
+
+    def __init__(self):
+        super(SnakeGymEnv, self).__init__()
+        self.GRID_SIZE = GRID_SIZE
+        self.WIDTH, self.HEIGHT = WIDTH, HEIGHT
+
+        self.action_space = spaces.Discrete(4)  # Actions: [0: UP, 1: DOWN, 2: LEFT, 3: RIGHT]
+        self.observation_space = spaces.Box(
+            low=0,
+            high=255,
+            shape=(self.HEIGHT // self.GRID_SIZE, self.WIDTH // self.GRID_SIZE, 1),
+            dtype=np.uint8,
+        )
+
+        pygame.init()
+        self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
+        pygame.display.set_caption("Snake Gym Environment")
+        self.clock = pygame.time.Clock()
+
+        self.snake = None
+        self.food = None
+        self.terminated = False
+        self.score = 0
+        self.seed()
+        self.reset()
+
+    def seed(self, seed=None):
+        self.np_random, seed = gym.utils.seeding.np_random(seed)
+        return [seed]
+
+    def reset(self, seed=None, options=None):
+        super().reset(seed=seed)
+        self.snake = Snake()
+        self.food = Food()
+        self.terminated = False
+        self.score = 0
+
+        if seed is not None:
+            self.seed(seed)
+
+        return self._get_observation(), {}
+
+    def step(self, action):
+        directions = [UP, DOWN, LEFT, RIGHT]
+        self.snake.change_direction(directions[action])
+        self.snake.move()
+
+        reward = 0
+        terminated = False
+        truncated = False
+
+        if not self.snake.alive:
+            self.terminated = True
+            reward = -10
+        elif self.snake.positions[0] == self.food.position:
+            if self.food.decayed:
+                reward = -5
+                self.snake.length -= 1
+            else:
+                reward = 10
+                self.snake.length += 1
+            self.food.reset()
+
+        self.food.update()
+
+        if self.snake.length <= 0:
+            self.terminated = True
+
+        return self._get_observation(), reward, self.terminated, truncated, {"score": self.score}
+
+    def render(self, mode="human"):
+        if mode == "human":
+            self.screen.fill(WHITE)
+            self.snake.draw(self.screen)
+            self.food.draw(self.screen)
+            pygame.display.flip()
+            self.clock.tick(10)
+
+    def close(self):
+        pygame.quit()
+
+    def _get_observation(self):
+        grid = np.zeros((self.HEIGHT // self.GRID_SIZE, self.WIDTH // self.GRID_SIZE), dtype=np.uint8)
+        for pos in self.snake.positions:
+            x, y = pos[0] // self.GRID_SIZE, pos[1] // self.GRID_SIZE
+            grid[y, x] = 1
+
+        fx, fy = self.food.position[0] // self.GRID_SIZE, self.food.position[1] // self.GRID_SIZE
+        grid[fy, fx] = 2
+        return grid[:, :, None]  # Add channel dimension
+
 
 class Snake:
     def __init__(self):
@@ -43,53 +128,33 @@ class Snake:
     def move(self):
         if not self.alive:
             return
-        if self.length <= 0 or len(self.positions) == 0:
-            self.alive = False
-            return
-
         cur = self.positions[0]
         x, y = self.direction
         new_x = cur[0] + (x * GRID_SIZE)
         new_y = cur[1] + (y * GRID_SIZE)
 
-        # check for collision with edges
-        if new_x < 0 or new_x >= WIDTH or new_y < 0 or new_y >= HEIGHT:
+        if new_x < 0 or new_x >= WIDTH or new_y < 0 or new_y >= HEIGHT or (new_x, new_y) in self.positions[2:]:
             self.alive = False
             return
 
-        new_pos = (new_x, new_y)
-
-        # check for collision with self
-        if new_pos in self.positions[2:]:
-            self.alive = False
-            return
-
-        self.positions.insert(0, new_pos)
+        self.positions.insert(0, (new_x, new_y))
         if len(self.positions) > self.length:
             self.positions.pop()
 
-    def reset(self):
-        self.__init__()
-
-    def change_direction(self, dir):
-        opposite = (self.direction[0] * -1, self.direction[1] * -1)
-        if dir != opposite:
-            self.direction = dir
+    def change_direction(self, direction):
+        opposite = (-self.direction[0], -self.direction[1])
+        if direction != opposite:
+            self.direction = direction
 
     def draw(self, surface):
-        for p in self.positions:
-            rect = pygame.Rect(p[0], p[1], GRID_SIZE, GRID_SIZE)
+        for pos in self.positions:
+            rect = pygame.Rect(pos[0], pos[1], GRID_SIZE, GRID_SIZE)
             pygame.draw.rect(surface, SNAKE_COLOR, rect)
+
 
 class Food:
     def __init__(self):
         self.position = self.random_position()
-        # load the fruit images
-        self.fresh_image = pygame.image.load("assets/fruit.png").convert_alpha()
-        self.fresh_image = pygame.transform.scale(self.fresh_image, (GRID_SIZE, GRID_SIZE))
-        self.decayed_image = pygame.image.load("assets/decayed_fruit.png").convert_alpha()
-        self.decayed_image = pygame.transform.scale(self.decayed_image, (GRID_SIZE, GRID_SIZE))
-        self.image = self.fresh_image
         self.spawn_time = pygame.time.get_ticks()
         self.decayed = False
 
@@ -99,95 +164,33 @@ class Food:
         return (x, y)
 
     def update(self):
-        # check if 5 seconds have passed since the fruit spawned
-        current_time = pygame.time.get_ticks()
-        if not self.decayed and current_time - self.spawn_time >= 5000:
+        if not self.decayed and pygame.time.get_ticks() - self.spawn_time > 5000:
             self.decayed = True
-            self.image = self.decayed_image
 
     def reset(self):
         self.position = self.random_position()
         self.spawn_time = pygame.time.get_ticks()
         self.decayed = False
-        self.image = self.fresh_image
 
     def draw(self, surface):
-        # blit the image at the fruit's position
-        surface.blit(self.image, self.position)
+        color = (255, 0, 0) if self.decayed else (0, 255, 0)
+        rect = pygame.Rect(self.position[0], self.position[1], GRID_SIZE, GRID_SIZE)
+        pygame.draw.rect(surface, color, rect)
 
-def main():
-    snake = Snake()
-    food = Food()
-    running = True
-    game_over = False
 
-    while running:
-        clock.tick(10)
+# Gym registration
+gym.envs.registration.register(id="SnakeGym-v0", entry_point="__main__:SnakeGymEnv")
 
-        if not game_over:
-            # check if the snake is alive
-            if not snake.alive or snake.length <= 0:
-                game_over = True
-            else:
-                snake.move()
+if __name__ == "__main__":
+    # Standalone test for Gym environment
+    env = gym.make("SnakeGym-v0")
+    obs, info = env.reset()
+    done = False
 
-                if snake.positions[0] == food.position:
-                    if food.decayed:
-                        snake.length -= 1
-                        # allow the length to go below 1 for game over condition
-                        if len(snake.positions) > snake.length:
-                            snake.positions.pop()
-                        if snake.length <= 0:
-                            snake.alive = False
-                    else:
-                        snake.length += 1
-                    food.reset()
+    while not done:
+        action = env.action_space.sample()  # Random action
+        obs, reward, terminated, truncated, info = env.step(action)
+        done = terminated or truncated
+        env.render()
 
-                # update the food state after each iteration
-                food.update()
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_UP:
-                    snake.change_direction(UP)
-                elif event.key == pygame.K_DOWN:
-                    snake.change_direction(DOWN)
-                elif event.key == pygame.K_LEFT:
-                    snake.change_direction(LEFT)
-                elif event.key == pygame.K_RIGHT:
-                    snake.change_direction(RIGHT)
-                elif event.key == pygame.K_r and game_over:
-                    # restart the game when 'R' is pressed
-                    snake = Snake()
-                    food = Food()
-                    game_over = False
-
-        screen.fill(WHITE)
-        snake.draw(screen)
-        food.draw(screen)
-
-        # render the length counter
-        length_text = font.render(f"Length: {snake.length}", True, BLACK)
-        screen.blit(length_text, (10, 10))  # display at the top-left corner
-
-        if game_over:
-            # display game over message
-            font_game_over = pygame.font.SysFont(None, 75)
-            text = font_game_over.render("Game Over", True, BLACK)
-            text_rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
-            screen.blit(text, text_rect)
-
-            # display restart instruction
-            instruction = font_game_over.render("Press 'R' to Restart", True, BLACK)
-            instruction_rect = instruction.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 100))
-            screen.blit(instruction, instruction_rect)
-
-        pygame.display.flip()
-
-    pygame.quit()
-    sys.exit()
-
-if __name__ == '__main__':
-    main()
+    env.close()
