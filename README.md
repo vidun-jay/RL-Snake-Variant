@@ -1,4 +1,5 @@
 # RL Snake Variant Project (Decaying Fruits)
+![](https://img.shields.io/badge/gym-0.26.2-7F66E5) ![](https://img.shields.io/badge/pygame-2.6.1-AAEEBB)
 
 ## Project Description
 

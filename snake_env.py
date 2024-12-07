@@ -1,6 +1,11 @@
 import pygame
 import sys
 import random
+from reward_structures import *
+import gymnasium as gym
+from gymnasium import spaces
+import numpy as np
+
 
 pygame.init()
 pygame.display.set_caption("Snake Game")
@@ -34,6 +39,8 @@ class Snake:
         self.direction = random.choice([UP, DOWN, LEFT, RIGHT])
         self.length = 1
         self.alive = True
+        self.multiplier = 1
+        self.fresh_fruit_combo = 0
 
     def random_start(self):
         x = random.randint(0, (WIDTH - GRID_SIZE) // GRID_SIZE) * GRID_SIZE
@@ -43,7 +50,10 @@ class Snake:
     def move(self):
         if not self.alive:
             return
-
+        if self.length <= 0 or len(self.positions) == 0:
+            self.alive = False
+            return
+        
         cur = self.positions[0]
         x, y = self.direction
         new_x = cur[0] + (x * GRID_SIZE)
@@ -88,30 +98,38 @@ class Food:
         self.decayed_image = pygame.transform.scale(self.decayed_image, (GRID_SIZE, GRID_SIZE))
         self.image = self.fresh_image
         self.spawn_time = pygame.time.get_ticks()
-        self.decayed = False
+        self.decayed = False        
+        self.penalty = 0
 
     def random_position(self):
         x = random.randint(0, (WIDTH - GRID_SIZE) // GRID_SIZE) * GRID_SIZE
         y = random.randint(0, (HEIGHT - GRID_SIZE) // GRID_SIZE) * GRID_SIZE
         return (x, y)
 
-    def update(self):
-        # check if 5 seconds have passed since the fruit spawned
+    def update(self, respawn_delay=10000, decay_delay=5000):
         current_time = pygame.time.get_ticks()
-        if not self.decayed and current_time - self.spawn_time >= 5000:
+        time_passed = current_time - self.spawn_time
+
+        if time_passed >= decay_delay:
             self.decayed = True
             self.image = self.decayed_image
-
+            
+        # respawn the fruit if it remains decayed and unconsumed for the respawn delay period
+        if(time_passed > (decay_delay + respawn_delay)):
+            self.reset()        
+                        
     def reset(self):
         self.position = self.random_position()
         self.spawn_time = pygame.time.get_ticks()
         self.decayed = False
+        self.penalty = 0
         self.image = self.fresh_image
 
     def draw(self, surface):
         # blit the image at the fruit's position
         surface.blit(self.image, self.position)
 
+# used for manual playing
 def main():
     snake = Snake()
     food = Food()
@@ -122,25 +140,17 @@ def main():
         clock.tick(10)
 
         if not game_over:
-            snake.move()
 
             # check if the snake is alive
             if not snake.alive or snake.length <= 0:
                 game_over = True
 
-            if snake.positions[0] == food.position:
-                if food.decayed:
-                    snake.length -= 1
-                    # allow the length to go below 1 for game over condition
-                    if len(snake.positions) > snake.length:
-                        snake.positions.pop()
-                else:
-                    snake.length += 1
-                food.reset()
-
-            # update the food state after each iteration
-            food.update()
-
+            else:
+                snake.move()
+                
+                # reward structure
+                default_reward_structure(snake, food)
+                
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -184,5 +194,99 @@ def main():
     pygame.quit()
     sys.exit()
 
+class SnakeEnv(gym.Env):
+    metadata = {'render.modes': ['human']}
+
+    def __init__(self):
+        super(SnakeEnv, self).__init__()
+
+        #define self
+        self.grid_size = GRID_SIZE
+        self.width, self.height = WIDTH, HEIGHT
+        self.action_space = spaces.Discrete(4)  # actions
+        self.observation_space = spaces.Box(
+            low=0, high=255,
+            shape=(self.height // self.grid_size, self.width // self.grid_size, 3),
+            dtype=np.uint8
+        )
+
+        # initialize Pygame components
+        pygame.init()
+        pygame.display.set_caption("Snake Gym Environment")
+        self.screen = pygame.display.set_mode((self.width, self.height))
+        self.clock = pygame.time.Clock()
+        self.snake = None
+        self.food = None
+
+    # resets the env
+    def reset(self):
+        self.snake = Snake()
+        self.food = Food()
+        self.done = False
+        self.steps = 0
+        return self._get_observation()
+
+    # env feed back on an action
+    def step(self, action):
+        self.steps += 1
+        if action == 0:  
+            self.snake.change_direction(UP)
+        elif action == 1:  
+            self.snake.change_direction(DOWN)
+        elif action == 2:  
+            self.snake.change_direction(LEFT)
+        elif action == 3:  
+            self.snake.change_direction(RIGHT)
+
+        self.snake.move()
+
+        #check if the snake is alive
+        if not self.snake.alive or self.snake.length <= 0:
+            self.done = True
+            reward = -10  # penalize for losing
+        else:
+            #apply the reward structure
+            reward = default_reward_structure(self.snake, self.food)
+            if reward is None:
+                reward = 0
+        observation = self._get_observation()
+        done = self.done or (self.steps >= 1000) or (self.snake.length >= 50)  
+
+        #return the tuple
+        return observation, reward, done, False, {}
+    
+    # render the env
+    def render(self, mode='human'):
+        if mode == 'human':
+            self.screen.fill(WHITE)
+            self.snake.draw(self.screen)
+            self.food.draw(self.screen)
+            pygame.display.flip()
+            self.clock.tick(10)
+
+    # close the env
+    def close(self):
+        pygame.quit()
+
+    # get the observation in grid representation
+    def _get_observation(self):
+        grid_width = self.width // self.grid_size
+        grid_height = self.height // self.grid_size
+        obs = np.zeros((grid_height, grid_width, 3), dtype=np.uint8)
+
+        # snake position
+        for x, y in self.snake.positions:
+            obs[y // self.grid_size, x // self.grid_size] = [0, 255, 0] 
+
+        # food position
+        fx, fy = self.food.position
+        if self.food.decayed:
+            obs[fy // self.grid_size, fx // self.grid_size] = [255, 255, 255]  # decayed food
+        else:
+            obs[fy // self.grid_size, fx // self.grid_size] = [255, 0, 0]  # fresh food
+
+        return obs
+
+ 
 if __name__ == '__main__':
     main()
