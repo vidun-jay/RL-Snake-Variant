@@ -8,19 +8,30 @@ def barebones_reward_structure(snake, food):
     food.update()
     
 # snake gains 1 length if fresh, and loses 1 length if decayed
-def default_reward_structure(snake, food):
+def default_reward_structure(snake, food, grid_size, width, height):
+    snake_head = snake.positions[0]
+    head_x, head_y = snake_head
+
+    # penalize proximity to walls
+    wall_penalty = 0
+    if head_x < 2 * grid_size or head_x > width - 2 * grid_size:
+        wall_penalty -= 0.5
+    if head_y < 2 * grid_size or head_y > height - 2 * grid_size:
+        wall_penalty -= 0.5
+
+    # reward for eating food
     if snake.positions[0] == food.position:
         if food.decayed:
             snake.length -= 1
-            # allow the length to go below 1 for game over condition
-            if(len(snake.positions) > snake.length):
-                snake.positions.pop()
+            food.reset()
+            return -5 + wall_penalty
         else:
-            snake.length += 1            
-        food.reset()
+            snake.length += 1
+            food.reset()
+            return 10 + wall_penalty
 
-    # update the food state after each iteration
     food.update()
+    return -0.1 + wall_penalty
 
 
 # penalty for rotten food increases as time passes
