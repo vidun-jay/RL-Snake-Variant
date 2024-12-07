@@ -241,18 +241,23 @@ class SnakeEnv(gym.Env):
         self.snake.move()
 
         #check if the snake is alive
-        if not self.snake.alive or self.snake.length <= 0:
+        head_x, head_y = self.snake.positions[0]
+        if head_x < 0 or head_x >= self.width or head_y < 0 or head_y >= self.height or not self.snake.alive:
             self.done = True
-            reward = -10  # penalize for losing
+            reward = -10  # Penalize for hitting the wall or dying
         else:
-            #apply the reward structure
-            reward = default_reward_structure(self.snake, self.food)
+            # Apply the reward structure
+            reward = default_reward_structure(self.snake, self.food, GRID_SIZE, WIDTH, HEIGHT)
             if reward is None:
-                reward = 0
-        observation = self._get_observation()
-        done = self.done or (self.steps >= 1000) or (self.snake.length >= 50)  
+                reward = -0.1  # Small penalty for not eating
 
-        #return the tuple
+        # Get the observation (environment state)
+        observation = self._get_observation()
+
+        # Mark the episode as done if the snake dies, reaches a step limit, or gets long enough
+        done = self.done or (self.steps >= 1000) or (self.snake.length >= 50)
+
+        # Return the updated environment state and feedback
         return observation, reward, done, False, {}
     
     # render the env
@@ -274,6 +279,30 @@ class SnakeEnv(gym.Env):
         grid_height = self.height // self.grid_size
         obs = np.zeros((grid_height, grid_width, 3), dtype=np.uint8)
 
+        # Snake position
+        for x, y in self.snake.positions:
+            obs[y // self.grid_size, x // self.grid_size] = [0, 255, 0]
+
+        # Food position
+        fx, fy = self.food.position
+        if self.food.decayed:
+            obs[fy // self.grid_size, fx // self.grid_size] = [255, 255, 255]
+        else:
+            obs[fy // self.grid_size, fx // self.grid_size] = [255, 0, 0]
+
+        # Wall proximity as additional features
+        snake_head = self.snake.positions[0]
+        head_x, head_y = snake_head
+        wall_distances = [
+            head_y // self.grid_size,  # Distance to top wall
+            (self.height - head_y) // self.grid_size,  # Distance to bottom wall
+            head_x // self.grid_size,  # Distance to left wall
+            (self.width - head_x) // self.grid_size,  # Distance to right wall
+        ]
+
+        return obs, wall_distances
+    
+        '''
         # snake position
         for x, y in self.snake.positions:
             obs[y // self.grid_size, x // self.grid_size] = [0, 255, 0] 
@@ -285,7 +314,8 @@ class SnakeEnv(gym.Env):
         else:
             obs[fy // self.grid_size, fx // self.grid_size] = [255, 0, 0]  # fresh food
 
-        return obs
+        return obs'''
+    
 
  
 if __name__ == '__main__':
