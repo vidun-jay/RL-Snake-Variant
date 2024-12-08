@@ -19,7 +19,7 @@ def default_reward_structure(snake, food):
             reward = -5  # penalty for eating decayed food
         else:
             snake.length += 1
-            reward = 10  # reward for eating fresh food
+            reward = 100  # reward for eating fresh food
         food.reset()
 
     # update the food state after each iteration

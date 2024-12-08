@@ -12,7 +12,8 @@ pygame.display.set_caption("Snake Game")
 
 # screen dimensions
 GRID_SIZE = 40
-WIDTH, HEIGHT = 1280, 960
+# now a 10x10 grid
+WIDTH, HEIGHT = 400, 400
 
 # colours
 WHITE = (255, 255, 255)
@@ -140,14 +141,11 @@ def main():
         clock.tick(10)
 
         if not game_over:
-
             # check if the snake is alive
             if not snake.alive or snake.length <= 0:
                 game_over = True
-
             else:
                 snake.move()
-
                 # reward structure
                 default_reward_structure(snake, food)
 
@@ -255,7 +253,6 @@ class SnakeEnv(gym.Env):
 
         # return the tuple
         return observation, reward, done, False, {}
-
 
     # render the env
     def render(self, mode='human'):
