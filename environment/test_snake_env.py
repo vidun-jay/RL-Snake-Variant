@@ -10,6 +10,7 @@ from tabulate import tabulate
 # parse arguments
 parser = argparse.ArgumentParser()
 parser.add_argument("--demo", action="store_true", help="run a demonstration episode with epsilon=0 instead of training")
+parser.add_argument("--interactive", action="store_true", help="prompt the user for custom hyperparameters")
 args = parser.parse_args()
 
 def get_direction_index(direction):
@@ -59,13 +60,20 @@ if os.path.exists("q_table.pkl"):
 else:
     Q = {}
 
-# hyperparameters
+# default hyperparameters
 alpha = 0.5
 gamma = 0.99
 initial_epsilon = 0.5
 min_epsilon = 0.00001
 epsilon_decay = 0.995
 episodes = 5000
+
+if args.interactive:
+    # prompt the user for custom values
+    print("Enter custom training parameters:")
+    initial_epsilon = float(input("Initial epsilon (e.g., 0.5): "))
+    epsilon_decay = float(input("Epsilon decay rate (e.g., 0.995): "))
+    episodes = int(input("Number of episodes (e.g., 5000): "))
 
 env = SnakeEnv()
 
