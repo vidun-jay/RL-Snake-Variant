@@ -3,9 +3,9 @@
 
 ## Project Description
 
-This repository contains the implementation for our reinforcement learning project where we enhance the classic Snake game by introducing timed fruits with varying decay rates. The game includes the following mechanics:
+This repository implements a reinforcement learning project that enhances the classic Snake game by introducing timed fruits with varying decay rates. The game mechanics include:
 - Fruits have a limited lifespan before they "go bad."
-- Once a fruit goes bad, it becomes harmful and reduces the snake's length if consumed.
+- Once a fruit spoils, it becomes harmful and reduces the snake's length if consumed.
 - Players must strategize to avoid spoiled fruits and adapt quickly to their environment.
 
 The project involves developing a custom OpenAI Gym environment for this problem and implementing reinforcement learning (RL) algorithms to train agents to play the game effectively.
@@ -14,26 +14,44 @@ The project involves developing a custom OpenAI Gym environment for this problem
 
 ## Repository Structure
 
-- `proposal.pdf`: Project proposal with the problem statement, milestones, feasibility, and references.
-- `environment/`: Code for the custom Gym environment.
-  - `snake_env.py`: Implementation of the Snake game environment.
-  - `README.md`: Details on the environment's state space, action space, reward structure, and environment interactions.
-- `rl_algorithms/`: Implementations of various RL algorithms.
-  - `dqn.py`: Deep Q-Learning implementation.
-  - `ppo.py`: Proximal Policy Optimization implementation.
-  - `random_agent.py`: Baseline random agent.
-- `results/`: Results from experiments and performance evaluations.
-  - `plots/`: Graphs and visualizations of algorithm performance.
-  - `logs/`: Training logs and metrics.
-- `report/`: Final project report following the NeurIPS style.
+- `proposal.pdf`: Project proposal outlining the problem statement, milestones, feasibility, and references.
+- `environment/`: Contains the custom Gym environment code.
+  - `reward_structures.py`: Defines various reward structures for the Snake game.
+  - `snake_env.py`: Implements the Snake game environment.
+  - `test_snake_env.py`: Facilitates training and testing of the Q-learning agent, including interactive and demo modes.
+- `results/`: Stores experiment results and performance evaluations.
 
 ---
 
 ## Setup Instructions
-TODO
 
 ### Prerequisites
-TODO
+
+Ensure that you have Python 3.8 or later installed. It is recommended to use a virtual environment to manage dependencies.
 
 ### Installation
-TODO
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/vidun-jay/RL-Snake-Variant.git
+   cd RL-Snake-Variant
+   ```
+
+2. **Install the required dependencies:**
+   ```
+   pip install -r requirements.txt
+   ```
+3. **Train the model interactively:**
+   ```
+   python3 environment/test_snake_env.py --interactive
+   ```
+   This command allows you to specify custom values for:
+   - **Epsilon:** The exploration-exploitation parameter.
+   - **Episode count:** Number of training episodes.
+   - **Decay rates:** Controls the rate of exploration decay.
+
+    Upon completion, a `q_table.pkl` file containing the trained model will be generated.
+
+4. python3 environment/test_snake_env.py --demo
+
+This allows you to observe how the agent adapts and avoids spoiled fruits while maximizing its score.
