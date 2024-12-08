@@ -12,7 +12,8 @@ pygame.display.set_caption("Snake Game")
 
 # screen dimensions
 GRID_SIZE = 40
-WIDTH, HEIGHT = 1280, 960
+# now a 10x10 grid
+WIDTH, HEIGHT = 400, 400
 
 # colours
 WHITE = (255, 255, 255)
@@ -53,7 +54,7 @@ class Snake:
         if self.length <= 0 or len(self.positions) == 0:
             self.alive = False
             return
-        
+
         cur = self.positions[0]
         x, y = self.direction
         new_x = cur[0] + (x * GRID_SIZE)
@@ -98,7 +99,7 @@ class Food:
         self.decayed_image = pygame.transform.scale(self.decayed_image, (GRID_SIZE, GRID_SIZE))
         self.image = self.fresh_image
         self.spawn_time = pygame.time.get_ticks()
-        self.decayed = False        
+        self.decayed = False
         self.penalty = 0
 
     def random_position(self):
@@ -113,11 +114,11 @@ class Food:
         if time_passed >= decay_delay:
             self.decayed = True
             self.image = self.decayed_image
-            
+
         # respawn the fruit if it remains decayed and unconsumed for the respawn delay period
         if(time_passed > (decay_delay + respawn_delay)):
-            self.reset()        
-                        
+            self.reset()
+
     def reset(self):
         self.position = self.random_position()
         self.spawn_time = pygame.time.get_ticks()
@@ -140,17 +141,14 @@ def main():
         clock.tick(10)
 
         if not game_over:
-
             # check if the snake is alive
             if not snake.alive or snake.length <= 0:
                 game_over = True
-
             else:
                 snake.move()
-                
                 # reward structure
                 default_reward_structure(snake, food)
-                
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -229,13 +227,13 @@ class SnakeEnv(gym.Env):
     # env feed back on an action
     def step(self, action):
         self.steps += 1
-        if action == 0:  
+        if action == 0:
             self.snake.change_direction(UP)
-        elif action == 1:  
+        elif action == 1:
             self.snake.change_direction(DOWN)
-        elif action == 2:  
+        elif action == 2:
             self.snake.change_direction(LEFT)
-        elif action == 3:  
+        elif action == 3:
             self.snake.change_direction(RIGHT)
 
         self.snake.move()
@@ -245,16 +243,17 @@ class SnakeEnv(gym.Env):
             self.done = True
             reward = -10  # penalize for losing
         else:
-            #apply the reward structure
+            # apply the reward structure
             reward = default_reward_structure(self.snake, self.food)
-            if reward is None:
-                reward = 0
-        observation = self._get_observation()
-        done = self.done or (self.steps >= 1000) or (self.snake.length >= 50)  
+            # apply small penalty for each step to encourage efficiency
+            reward -= 0.1
 
-        #return the tuple
+        observation = self._get_observation()
+        done = self.done or (self.steps >= 1000) or (self.snake.length >= 50)
+
+        # return the tuple
         return observation, reward, done, False, {}
-    
+
     # render the env
     def render(self, mode='human'):
         if mode == 'human':
@@ -276,7 +275,7 @@ class SnakeEnv(gym.Env):
 
         # snake position
         for x, y in self.snake.positions:
-            obs[y // self.grid_size, x // self.grid_size] = [0, 255, 0] 
+            obs[y // self.grid_size, x // self.grid_size] = [0, 255, 0]
 
         # food position
         fx, fy = self.food.position
@@ -287,6 +286,6 @@ class SnakeEnv(gym.Env):
 
         return obs
 
- 
+
 if __name__ == '__main__':
     main()
