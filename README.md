@@ -52,6 +52,9 @@ Ensure that you have Python 3.8 or later installed. It is recommended to use a v
 
     Upon completion, a `q_table.pkl` file containing the trained model will be generated.
 
-4. python3 environment/test_snake_env.py --demo
+4. **Test the trained model in demo mode:**
+   ```
+   python3 environment/test_snake_env.py --demo
+   ```
 
 This allows you to observe how the agent adapts and avoids spoiled fruits while maximizing its score.
