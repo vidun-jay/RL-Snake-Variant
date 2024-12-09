@@ -20,6 +20,7 @@ The project involves developing a custom OpenAI Gym environment for this problem
   - `snake_env.py`: Implements the Snake game environment.
   - `test_snake_env.py`: Facilitates training and testing of the Q-learning agent, including interactive and demo modes.
 - `results/`: Stores experiment results and performance evaluations.
+- `report.pdf`: Detailed project report including challenges, approaches (Q-learning, DQN), state space, action space, reward structure, and empirical studies on training performance.
 
 ---
 
