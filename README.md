@@ -51,7 +51,7 @@ Ensure that you have Python 3.8 or later installed. It is recommended to use a v
    - **Episode count:** Number of training episodes.
    - **Decay rates:** Controls the rate of exploration decay.
 
-    Upon completion, a `q_table.pkl` file containing the trained model will be generated.
+    Upon completion, a `q_table.pkl` file containing the trained model will be generated. A sample file with a high number of episodes is included to test the agent. To use this dataset, move the `sample_dataset/q_table.pkl` file into the root directory, replacing the existing file if needed.
 
 4. **Test the trained model in demo mode:**
    ```
